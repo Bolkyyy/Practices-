@@ -1,19 +1,27 @@
-from flask import Flask
+from flask import Flask, render_template, template_folder
+import sqlite3
 
 app = Flask(__name__)
 
+DB_PATH = "app.db"
+
+def get_connection():
+    con =sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    return con
+
+
 @app.route("/")
 def index():
-    return """
-    <html>
-        <head><title>Список задач</title></head>
-        <body>
-            <h1>Мой список задач</h1>
-            <p>Скоро здесь будет список задач из базы данных.</p>
-            <p><a href="/about">О проекте</a></p>
-        </body>
-    </html>
-    """
+    con = get_connection()
+    cur = con.cursor()
+
+    cur.execute("select id, title, status from tasks order by id")
+    rows = cur.fetchall()
+
+    con.close()
+
+    return render_template('index.html', items=rows)
 
 @app.route('/about')
 def about():
