@@ -12,16 +12,22 @@ def get_connection():
 
 def fetch_all_tasks():
     con = get_connection()
-    cur = con.cursor()
-    cur.execute("select id, title, status from tasks order by id")
-    rows = cur.fetchall()
-    con.close()
-    return rows
+    try:
+        cur = con.cursor()
+        cur.execute("select id, title, status from tasks order by id")
+        return cur.fetchall()
+    except sqlite3.Error as e:
+        print(f"[DB ERROR] {e}")
+        return []
+    finally:
+        con.close()
+
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
+
         if not title:
             return render_template(
                 'index.html',
@@ -30,10 +36,21 @@ def index():
             )
 
         con = get_connection()
-        cur = con.cursor()
-        cur.execute("insert into tasks (title) values (?)", (title,))
-        con.commit()
-        con.close()
+        try:
+            cur = con.cursor()
+            cur.execute("insert into tasks (title) values (?)", (title,))
+            con.commit()
+        except sqlite3.Error as e:
+            con.rollback()
+
+            print(f"[DB ERROR] {e}")
+            return render_template(
+                'index.html',
+                items = fetch_all_tasks(),
+                error = "Не удалось сохранить задачу. Попробуйте ещё раз."
+            )
+        finally:
+            con.close()
 
         return redirect(url_for('index'))
 
